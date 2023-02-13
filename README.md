@@ -24,7 +24,7 @@ This plugin is an extended version of Kafkameter with restructured UI and additi
 
 ## What's New?
 
-* Consumer Support Enhancement
+* Consumer Support Enhancement including multiple consumer threads
 * Provided support for security (Including JAAS support)
 * Removed redundant libraries and built as non shaded jar.
 * Ability with the consumer to define the no of records to read per request
