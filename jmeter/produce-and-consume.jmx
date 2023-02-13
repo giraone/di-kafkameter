@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.5">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Kafka produce and consume" enabled="true">
+      <stringProp name="TestPlan.comments"></stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+        <collectionProp name="Arguments.arguments"/>
+      </elementProp>
+      <stringProp name="TestPlan.user_define_classpath"></stringProp>
+    </TestPlan>
+    <hashTree>
+      <Arguments guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="producerThreads" elementType="Argument">
+            <stringProp name="Argument.name">producerThreads</stringProp>
+            <stringProp name="Argument.value">1</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="producerLoops" elementType="Argument">
+            <stringProp name="Argument.name">producerLoops</stringProp>
+            <stringProp name="Argument.value">2</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="consumerThreads" elementType="Argument">
+            <stringProp name="Argument.name">consumerThreads</stringProp>
+            <stringProp name="Argument.value">2</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="consumerLoops" elementType="Argument">
+            <stringProp name="Argument.name">consumerLoops</stringProp>
+            <stringProp name="Argument.value">1</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="consumerMessagesPerPoll" elementType="Argument">
+            <stringProp name="Argument.name">consumerMessagesPerPoll</stringProp>
+            <stringProp name="Argument.value">1</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+        </collectionProp>
+      </Arguments>
+      <hashTree/>
+      <com.di.jmeter.kafka.config.KafkaProducerConfig guiclass="TestBeanGUI" testclass="com.di.jmeter.kafka.config.KafkaProducerConfig" testname="Kafka Producer Config" enabled="true">
+        <stringProp name="batchSize">16384</stringProp>
+        <stringProp name="clientId">JMeter-Producer-1</stringProp>
+        <collectionProp name="extraConfigs"/>
+        <stringProp name="kafkaBrokers">localhost:9092</stringProp>
+        <stringProp name="kafkaProducerClientVariableName">KafkaProducerClient</stringProp>
+        <stringProp name="kafkaSslKeystore"></stringProp>
+        <stringProp name="kafkaSslKeystorePassword"></stringProp>
+        <stringProp name="kafkaSslPrivateKeyPass"></stringProp>
+        <stringProp name="kafkaSslTruststore"></stringProp>
+        <stringProp name="kafkaSslTruststorePassword"></stringProp>
+        <stringProp name="securityType">securityType.plaintext</stringProp>
+        <stringProp name="serializerKey">org.apache.kafka.common.serialization.StringSerializer</stringProp>
+        <stringProp name="serializerValue">org.apache.kafka.common.serialization.StringSerializer</stringProp>
+      </com.di.jmeter.kafka.config.KafkaProducerConfig>
+      <hashTree/>
+      <com.di.jmeter.kafka.config.KafkaConsumerConfig guiclass="TestBeanGUI" testclass="com.di.jmeter.kafka.config.KafkaConsumerConfig" testname="Kafka Consumer Config" enabled="true">
+        <boolProp name="autoCommit">true</boolProp>
+        <stringProp name="deSerializerKey">org.apache.kafka.common.serialization.StringDeserializer</stringProp>
+        <stringProp name="deSerializerValue">org.apache.kafka.common.serialization.StringDeserializer</stringProp>
+        <collectionProp name="extraConfigs"/>
+        <stringProp name="groupId">consumer-group-1</stringProp>
+        <stringProp name="kafkaBrokers">localhost:9092</stringProp>
+        <stringProp name="kafkaConsumerClientVariableName">KafkaConsumerClient</stringProp>
+        <stringProp name="kafkaSslKeystore"></stringProp>
+        <stringProp name="kafkaSslKeystorePassword"></stringProp>
+        <stringProp name="kafkaSslPrivateKeyPass"></stringProp>
+        <stringProp name="kafkaSslTruststore"></stringProp>
+        <stringProp name="kafkaSslTruststorePassword"></stringProp>
+        <stringProp name="numberOfMsgToPoll">${consumerMessagesPerPoll}</stringProp>
+        <stringProp name="securityType">securityType.plaintext</stringProp>
+        <stringProp name="topic">test-topic</stringProp>
+      </com.di.jmeter.kafka.config.KafkaConsumerConfig>
+      <hashTree/>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Thread Group - Producer" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">${producerLoops}</stringProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">${producerThreads}</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">1</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.duration"></stringProp>
+        <stringProp name="ThreadGroup.delay"></stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+      </ThreadGroup>
+      <hashTree>
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="JSR223 Sampler" enabled="true">
+          <stringProp name="cacheKey">true</stringProp>
+          <stringProp name="filename"></stringProp>
+          <stringProp name="parameters"></stringProp>
+          <stringProp name="script">import com.github.f4b6a3.tsid.TsidCreator;
+
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+
+String messageKey = TsidCreator.getTsid256().toString();
+vars.put(&quot;messageKey&quot;, messageKey);
+
+String messageContent = &quot;Content &quot; + messageKey;
+vars.put(&quot;messageContent&quot;, messageContent);
+
+String timestampCreated = DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.systemDefault()).format(Instant.now());
+vars.put(&quot;timestampCreated&quot;, timestampCreated);</stringProp>
+          <stringProp name="scriptLanguage">groovy</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+        <com.di.jmeter.kafka.sampler.KafkaProducerSampler guiclass="TestBeanGUI" testclass="com.di.jmeter.kafka.sampler.KafkaProducerSampler" testname="Kafka Producer Sampler" enabled="true">
+          <stringProp name="kafkaMessage">{
+ &quot;messageContent&quot;: &quot;${messageContent}&quot;,
+ &quot;timestampCreated&quot;: &quot;${timestampCreated}&quot;,
+ &quot;threadNum&quot;: ${__threadNum},
+ &quot;loopCounter&quot;: ${__jm__Thread Group - Producer__idx}
+}</stringProp>
+          <stringProp name="kafkaMessageKey">${messageKey}</stringProp>
+          <stringProp name="kafkaProducerClientVariableName">KafkaProducerClient</stringProp>
+          <stringProp name="kafkaTopic">test-topic</stringProp>
+          <collectionProp name="messageHeaders"/>
+          <stringProp name="partitionString"></stringProp>
+        </com.di.jmeter.kafka.sampler.KafkaProducerSampler>
+        <hashTree/>
+      </hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Thread Group - Consumer" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">${consumerLoops}</stringProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">${consumerThreads}</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">1</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.duration"></stringProp>
+        <stringProp name="ThreadGroup.delay"></stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+      </ThreadGroup>
+      <hashTree>
+        <com.di.jmeter.kafka.sampler.KafkaConsumerSampler guiclass="TestBeanGUI" testclass="com.di.jmeter.kafka.sampler.KafkaConsumerSampler" testname="Kafka Consumer Sampler" enabled="true">
+          <stringProp name="commitType">Sync</stringProp>
+          <stringProp name="kafkaConsumerClientVariableName">KafkaConsumerClient</stringProp>
+          <stringProp name="pollTimeout">100</stringProp>
+          <stringProp name="commaSeparatedTopicNames">test-topic</stringProp>
+        </com.di.jmeter.kafka.sampler.KafkaConsumerSampler>
+        <hashTree/>
+      </hashTree>
+      <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time>
+            <latency>true</latency>
+            <timestamp>true</timestamp>
+            <success>true</success>
+            <label>true</label>
+            <code>true</code>
+            <message>true</message>
+            <threadName>true</threadName>
+            <dataType>true</dataType>
+            <encoding>false</encoding>
+            <assertions>true</assertions>
+            <subresults>true</subresults>
+            <responseData>false</responseData>
+            <samplerData>false</samplerData>
+            <xml>false</xml>
+            <fieldNames>true</fieldNames>
+            <responseHeaders>false</responseHeaders>
+            <requestHeaders>false</requestHeaders>
+            <responseDataOnError>false</responseDataOnError>
+            <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+            <assertionsResultsToSave>0</assertionsResultsToSave>
+            <bytes>true</bytes>
+            <sentBytes>true</sentBytes>
+            <url>true</url>
+            <threadCounts>true</threadCounts>
+            <idleTime>true</idleTime>
+            <connectTime>true</connectTime>
+          </value>
+        </objProp>
+        <stringProp name="filename"></stringProp>
+      </ResultCollector>
+      <hashTree/>
+      <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time>
+            <latency>true</latency>
+            <timestamp>true</timestamp>
+            <success>true</success>
+            <label>true</label>
+            <code>true</code>
+            <message>true</message>
+            <threadName>true</threadName>
+            <dataType>true</dataType>
+            <encoding>false</encoding>
+            <assertions>true</assertions>
+            <subresults>true</subresults>
+            <responseData>false</responseData>
+            <samplerData>false</samplerData>
+            <xml>false</xml>
+            <fieldNames>true</fieldNames>
+            <responseHeaders>false</responseHeaders>
+            <requestHeaders>false</requestHeaders>
+            <responseDataOnError>false</responseDataOnError>
+            <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+            <assertionsResultsToSave>0</assertionsResultsToSave>
+            <bytes>true</bytes>
+            <sentBytes>true</sentBytes>
+            <url>true</url>
+            <threadCounts>true</threadCounts>
+            <idleTime>true</idleTime>
+            <connectTime>true</connectTime>
+          </value>
+        </objProp>
+        <stringProp name="filename"></stringProp>
+      </ResultCollector>
+      <hashTree/>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>
