@@ -25,27 +25,25 @@ import org.apache.jmeter.testbeans.TestBeanHelper;
 import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.threads.JMeterVariables;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.StickyAssignor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
-import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+
+import static org.apache.jmeter.threads.JMeterContextService.getContext;
 
 public class KafkaConsumerConfig extends ConfigTestElement
         implements ConfigElement, TestBean, TestStateListener, Serializable {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaConsumerConfig.class);
     private static final long serialVersionUID = 3328926106250797599L;
 
-    private KafkaConsumer<String, Object> kafkaConsumer;
     private List<VariableSettings> extraConfigs;
     private String kafkaConsumerClientVariableName;
     private String kafkaBrokers;
     private String groupId;
-    private String topic;
-    private String numberOfMsgToPoll;
     private boolean autoCommit;
     private String deSerializerKey;
     private String deSerializerValue;
@@ -69,21 +67,14 @@ public class KafkaConsumerConfig extends ConfigTestElement
     public void testStarted() {
         this.setRunningVersion(true);
         TestBeanHelper.prepare(this);
-        JMeterVariables variables = getThreadContext().getVariables();
-
-        if (variables.getObject(kafkaConsumerClientVariableName) != null) {
+        final JMeterVariables variables = getContext().getVariables();
+        final String variableNameProperties = getKafkaConsumerClientVariableName();
+        final Properties consumerProperties = (Properties) variables.getObject(variableNameProperties);
+        if (consumerProperties != null) {
             LOGGER.error("Kafka consumer is already running.");
         } else {
-            synchronized (this) {
-                try {
-                    kafkaConsumer = new KafkaConsumer<>(getProps());
-                    kafkaConsumer.subscribe(Collections.singletonList(getTopic()));
-                    variables.putObject(kafkaConsumerClientVariableName, kafkaConsumer);
-                    LOGGER.info("Kafka consumer client successfully Initialized");
-                } catch (Exception e) {
-                    LOGGER.error("Error establishing kafka consumer client!", e);
-                }
-            }
+            variables.putObject(variableNameProperties, getProps());
+            LOGGER.error("Kafka consumer properties added to '{}'.", variableNameProperties);
         }
     }
 
@@ -91,26 +82,27 @@ public class KafkaConsumerConfig extends ConfigTestElement
         Properties props = new Properties();
 
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, getKafkaBrokers());
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, getGroupId());//groupId
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, getGroupId());
+
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, getDeSerializerKey());
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, getDeSerializerValue());
         props.put("security.protocol", getSecurityType().replaceAll("securityType.", "").toUpperCase());
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, isAutoCommit());
 
-        LOGGER.debug("Additional Config Size::: " + getExtraConfigs().size());
-        if (getExtraConfigs().size() >= 1) {
-            LOGGER.info("Setting up Additional properties");
-            for (VariableSettings entry : getExtraConfigs()){
-                props.put(entry.getConfigKey(), entry.getConfigValue());
-                LOGGER.debug(String.format("Adding property : %s", entry.getConfigKey()));
-            }
+        LOGGER.debug("Adding {} additional configs", getExtraConfigs().size());
+        for (VariableSettings entry : getExtraConfigs()){
+            props.put(entry.getConfigKey(), entry.getConfigValue());
+            LOGGER.debug("Adding property: {}", entry.getConfigKey());
         }
 
-        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, Math.max(Integer.parseInt(getNumberOfMsgToPoll()), 1));
+        // Use the StickyAssignor to avoid re-assignment
+        props.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, StickyAssignor.class.getName());
+        // Poll only 0 or 1 records, so that JMeter Summary Report counts correctly
+        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 1);
 
         if (getSecurityType().equalsIgnoreCase("securityType.ssl") || getSecurityType().equalsIgnoreCase("securityType.sasl_ssl")) {
-            LOGGER.info("Kafka security type: " + getSecurityType().replaceAll("securityType.", "").toUpperCase());
-            LOGGER.info(String.format("Setting up Kafka %s properties", getSecurityType()));
+            LOGGER.info("Kafka security type: {}", getSecurityType().replaceAll("securityType.", "").toUpperCase());
+            LOGGER.info("Setting up Kafka {} properties", getSecurityType());
             props.put("ssl.truststore.location", getKafkaSslTruststore());
             props.put("ssl.truststore.password", getKafkaSslTruststorePassword());
             props.put("ssl.keystore.location", getKafkaSslKeystore());
@@ -127,8 +119,6 @@ public class KafkaConsumerConfig extends ConfigTestElement
 
     @Override
     public void testEnded() {
-        kafkaConsumer.close();
-        LOGGER.info("Kafka consumer client connection terminated");
     }
 
     @Override
@@ -137,14 +127,12 @@ public class KafkaConsumerConfig extends ConfigTestElement
     }
 
     // Getters and setters
-    public KafkaConsumer<String, Object> getKafkaConsumer() {
-        return kafkaConsumer;
-    }
 
     public String getKafkaConsumerClientVariableName() {
         return kafkaConsumerClientVariableName;
     }
 
+    @SuppressWarnings("unused")
     public void setKafkaConsumerClientVariableName(String kafkaConsumerClientVariableName) {
         this.kafkaConsumerClientVariableName = kafkaConsumerClientVariableName;
     }
@@ -153,6 +141,7 @@ public class KafkaConsumerConfig extends ConfigTestElement
         return kafkaBrokers;
     }
 
+    @SuppressWarnings("unused")
     public void setKafkaBrokers(String kafkaBrokers) {
         this.kafkaBrokers = kafkaBrokers;
     }
@@ -161,6 +150,7 @@ public class KafkaConsumerConfig extends ConfigTestElement
         return securityType;
     }
 
+    @SuppressWarnings("unused")
     public void setSecurityType(String securityType) {
         this.securityType = securityType;
     }
@@ -169,6 +159,7 @@ public class KafkaConsumerConfig extends ConfigTestElement
         return kafkaSslKeystore;
     }
 
+    @SuppressWarnings("unused")
     public void setKafkaSslKeystore(String kafkaSslKeystore) {
         this.kafkaSslKeystore = kafkaSslKeystore;
     }
@@ -177,6 +168,7 @@ public class KafkaConsumerConfig extends ConfigTestElement
         return kafkaSslKeystorePassword;
     }
 
+    @SuppressWarnings("unused")
     public void setKafkaSslKeystorePassword(String kafkaSslKeystorePassword) {
         this.kafkaSslKeystorePassword = kafkaSslKeystorePassword;
     }
@@ -185,6 +177,7 @@ public class KafkaConsumerConfig extends ConfigTestElement
         return kafkaSslTruststore;
     }
 
+    @SuppressWarnings("unused")
     public void setKafkaSslTruststore(String kafkaSslTruststore) {
         this.kafkaSslTruststore = kafkaSslTruststore;
     }
@@ -193,6 +186,7 @@ public class KafkaConsumerConfig extends ConfigTestElement
         return kafkaSslTruststorePassword;
     }
 
+    @SuppressWarnings("unused")
     public void setKafkaSslTruststorePassword(String kafkaSslTruststorePassword) {
         this.kafkaSslTruststorePassword = kafkaSslTruststorePassword;
     }
@@ -201,10 +195,12 @@ public class KafkaConsumerConfig extends ConfigTestElement
         return kafkaSslPrivateKeyPass;
     }
 
+    @SuppressWarnings("unused")
     public void setKafkaSslPrivateKeyPass(String kafkaSslPrivateKeyPass) {
         this.kafkaSslPrivateKeyPass = kafkaSslPrivateKeyPass;
     }
 
+    @SuppressWarnings("unused")
     public void setExtraConfigs(List<VariableSettings> extraConfigs) {
         this.extraConfigs = extraConfigs;
     }
@@ -217,30 +213,16 @@ public class KafkaConsumerConfig extends ConfigTestElement
         return groupId;
     }
 
+    @SuppressWarnings("unused")
     public void setGroupId(String groupId) {
         this.groupId = groupId;
-    }
-
-    public String getTopic() {
-        return topic;
-    }
-
-    public void setTopic(String topic) {
-        this.topic = topic;
-    }
-
-    public String getNumberOfMsgToPoll() {
-        return numberOfMsgToPoll;
-    }
-
-    public void setNumberOfMsgToPoll(String numberOfMsgToPoll) {
-        this.numberOfMsgToPoll = numberOfMsgToPoll;
     }
 
     public boolean isAutoCommit() {
         return autoCommit;
     }
 
+    @SuppressWarnings("unused")
     public void setAutoCommit(boolean autoCommit) {
         this.autoCommit = autoCommit;
     }
@@ -249,6 +231,7 @@ public class KafkaConsumerConfig extends ConfigTestElement
         return deSerializerKey;
     }
 
+    @SuppressWarnings("unused")
     public void setDeSerializerKey(String deSerializerKey) {
         this.deSerializerKey = deSerializerKey;
     }
@@ -257,6 +240,7 @@ public class KafkaConsumerConfig extends ConfigTestElement
         return deSerializerValue;
     }
 
+    @SuppressWarnings("unused")
     public void setDeSerializerValue(String deSerializerValue) {
         this.deSerializerValue = deSerializerValue;
     }

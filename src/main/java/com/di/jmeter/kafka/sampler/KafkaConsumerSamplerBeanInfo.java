@@ -25,26 +25,44 @@ public class KafkaConsumerSamplerBeanInfo extends BeanInfoSupport {
 
     public KafkaConsumerSamplerBeanInfo() {
         super(KafkaConsumerSampler.class);
-        createPropertyGroup("Variable Name bound to Kafka Client", new String[] {"kafkaConsumerClientVariableName"});
-        createPropertyGroup("Consumer Settings", new String[] {"pollTimeout", "commitType"});
+        createPropertyGroup("Test Settings", new String[] {
+            "kafkaConsumerClientVariableName",
+            "commaSeparatedTopicNames",
+            "closeConsumerAtTestEnd"
+        });
+        createPropertyGroup("Consumer Settings", new String[] {
+            "pollTimeout",
+            "commitType"
+        });
 
         PropertyDescriptor varPropDesc = property("kafkaConsumerClientVariableName");
         varPropDesc.setValue(NOT_UNDEFINED, Boolean.TRUE);
         varPropDesc.setValue(DEFAULT, "KafkaConsumerClient");
-        varPropDesc.setDisplayName("Variable Name of Consumer Client declared in Config element");
+        varPropDesc.setDisplayName("Name of Consumer Client");
         varPropDesc.setShortDescription("Variable name declared in Kafka Consumer client config");
+
+        PropertyDescriptor topicsPropDesc = property("commaSeparatedTopicNames");
+        topicsPropDesc.setValue(NOT_UNDEFINED, Boolean.TRUE);
+        topicsPropDesc.setValue(DEFAULT, "kafka_topic");
+        topicsPropDesc.setDisplayName("Topics to consume from");
+        topicsPropDesc.setShortDescription("Comma separated names of Kafka topics for the consumer to subscribe");
+
+        PropertyDescriptor propDesc = property("closeConsumerAtTestEnd");
+        propDesc.setValue(NOT_UNDEFINED, Boolean.TRUE);
+        propDesc.setValue(DEFAULT, Boolean.TRUE);
+        propDesc.setDisplayName("Close Consumer at each test end");
+        propDesc.setShortDescription("Close Consumer at each end of the test");
 
         PropertyDescriptor consumerSettingsPropDesc = property("pollTimeout");
         consumerSettingsPropDesc.setValue(NOT_UNDEFINED, Boolean.TRUE);
         consumerSettingsPropDesc.setValue(DEFAULT, "100");
         consumerSettingsPropDesc.setDisplayName("Poll Timeout");
-        consumerSettingsPropDesc.setShortDescription("Consumer poll timeout (in MilliSecs)");
+        consumerSettingsPropDesc.setShortDescription("Consumer poll timeout (in milliseconds)");
 
         consumerSettingsPropDesc = property("commitType");
         consumerSettingsPropDesc.setValue(NOT_UNDEFINED, Boolean.TRUE);
         consumerSettingsPropDesc.setValue(DEFAULT, "Sync");
         consumerSettingsPropDesc.setDisplayName("Commit Type");
         consumerSettingsPropDesc.setShortDescription("Commit type - Sync/Async");
-
     }
 }

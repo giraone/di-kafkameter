@@ -28,8 +28,13 @@ import org.apache.jmeter.testbeans.TestBean;
 import org.apache.jmeter.testelement.AbstractTestElement;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.testelement.TestStateListener;
-import org.apache.jmeter.threads.JMeterContextService;
-import org.apache.kafka.clients.consumer.*;
+import org.apache.jmeter.threads.JMeterContext;
+import org.apache.jmeter.threads.JMeterVariables;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.consumer.OffsetCommitCallback;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
@@ -40,104 +45,107 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 
 public class KafkaConsumerSampler extends AbstractTestElement
-        implements Sampler, TestBean, ConfigMergabilityIndicator, TestStateListener, TestElement, Serializable, Searchable {
+    implements Sampler, TestBean, ConfigMergabilityIndicator, TestStateListener, TestElement, Serializable, Searchable {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaConsumerSampler.class);
+    private static final long DEFAULT_TIMEOUT = 100;
 
     private String kafkaConsumerClientVariableName;
+    private String commaSeparatedTopicNames;
     private String pollTimeout;
     private String commitType;
-    private final long DEFAULT_TIMEOUT = 100;
+    private boolean closeConsumerAtTestEnd;
 
-    private KafkaConsumer<String, Object> kafkaConsumer;
+    private final Map<Integer, KafkaConsumer<String, Object>> consumers = new HashMap<>();
 
     @Override
     public SampleResult sample(Entry entry) {
 
         SampleResult result = new SampleResult();
-        try{
-            if(this.kafkaConsumer == null){
-                this.validateClient();
-            }
-
+        boolean started = false;
+        try {
             result.setSampleLabel(getName());
             result.setDataType(SampleResult.TEXT);
-            result.setContentType("text/plain");
+            result.setContentType("application/json");
             result.setDataEncoding(StandardCharsets.UTF_8.name());
             result.setRequestHeaders(String.format("TimeStamp: %s\n", LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))));
-
             result.sampleStart();
-            this.processRecordsToResults(getConsumerRecords(), result);
-
-        }catch (KafkaException e){
-            LOGGER.info("Kafka Consumer config not initialized properly.. Check the config element");
-            result = handleException(result, e);
-        }finally {
-            result.sampleEnd();
+            started = true;
+            this.processRecordsToResults(getConsumerRecord(), result);
+        } catch (KafkaException e) {
+            LOGGER.error("Kafka Consumer config not initialized properly. Check the config element.", e);
+            return handleException(result, e);
+        } finally {
+            if (started) {
+                // Must be checked - otherwise "setEndTime must be called after setStartTime" occurs
+                result.sampleEnd();
+            }
         }
         return result;
     }
 
-    private ConsumerRecords<String, Object> getConsumerRecords() {
+    private ConsumerRecord<String, Object> getConsumerRecord() {
         ConsumerRecords<String, Object> records;
-        this.pollTimeout = (Strings.isNullOrEmpty(pollTimeout)) ?  String.valueOf(DEFAULT_TIMEOUT) : pollTimeout;
+        this.pollTimeout = (Strings.isNullOrEmpty(pollTimeout)) ? String.valueOf(DEFAULT_TIMEOUT) : pollTimeout;
 
-        // This will poll Single/multiple messages of records as per the config
-        do{
-            records = kafkaConsumer.poll(Duration.ofMillis(Long.parseLong(getPollTimeout())));
-        }while(records.isEmpty());
+        // This will poll one or zero records
+        do {
+            final Duration timeout = Duration.ofMillis(Long.parseLong(getPollTimeout()));
+            LOGGER.debug("KafkaConsumer.poll with timeout {}", timeout);
+            records = getKafkaConsumerOfThread().poll(timeout);
+        } while (records.isEmpty());
 
-        for(ConsumerRecord<String, Object> record : records){
-            record = records.iterator().next();
-            LOGGER.debug(String.format("offset = %d, key = %s, value = %s%n", record.offset(), record.key(), record.value()));
-            // commit offset of the message
-            Map<TopicPartition, OffsetAndMetadata> offset = Collections.singletonMap(
-                    new TopicPartition(record.topic(), record.partition()),
-                    new OffsetAndMetadata(record.offset() + 1)
-            );
+        LOGGER.info("KafkaConsumer.poll returned {} records", records.count());
 
-            if(getCommitType().equalsIgnoreCase("sync")){
-                kafkaConsumer.commitSync(offset); //Commit the offset after reading single message
-            }else{
-                kafkaConsumer.commitAsync((OffsetCommitCallback) offset);//Commit the offset after reading single message
-            }
+        ConsumerRecord<String, Object> record = records.iterator().next();
+        LOGGER.debug(String.format("offset = %d, key = %s, value = %s%n", record.offset(), record.key(), record.value()));
+        // commit offset of the message
+        Map<TopicPartition, OffsetAndMetadata> offset = Collections.singletonMap(
+            new TopicPartition(record.topic(), record.partition()),
+            new OffsetAndMetadata(record.offset() + 1)
+        );
+        if (getCommitType().equalsIgnoreCase("sync")) {
+            getKafkaConsumerOfThread().commitSync(offset); //Commit the offset after reading single message
+        } else {
+            getKafkaConsumerOfThread().commitAsync((OffsetCommitCallback) offset);//Commit the offset after reading single message
         }
-        return records;
+
+        return record;
     }
 
-
-    private void processRecordsToResults(ConsumerRecords<String, Object> consumerRecords, SampleResult result) {
-        if(!consumerRecords.isEmpty()){
+    private void processRecordsToResults(ConsumerRecord<String, Object> record, SampleResult result) {
+        if (record != null) {
             StringBuilder headers = new StringBuilder();
             StringBuilder response = new StringBuilder();
-            for(ConsumerRecord<String, Object> record : consumerRecords){
-                headers.append(String.format("Timestamp: %s\nTopic: %s\nPartition: %s\nOffset: %s\nHeaders: %s\n\n", record.timestamp(), record.topic(), record.partition(), record.offset(), record.headers().toString()));
-                response.append(record.key() + ": " + record.value().toString()+"\n\n");
-            }
-            result.setResponseHeaders(String.valueOf(headers));
-            result.setResponseData(String.valueOf(response), StandardCharsets.UTF_8.name());
+            headers
+                .append("Key: ").append(record.key()).append("\n")
+                .append("Topic: ").append(record.topic()).append("\n")
+                .append("Timestamp: ").append(record.timestamp()).append("\n")
+                .append("Partition: ").append(record.partition()).append("\n")
+                .append("Offset: ").append(record.offset()).append("\n");
+            record.headers().forEach(h -> headers.append(h.key()).append(":").append(new String(h.value(), StandardCharsets.UTF_8)).append("\n"));
+            response.append(record.value());
+            result.setResponseHeaders(headers.toString());
+            result.setResponseData(response.toString(), StandardCharsets.UTF_8.name());
             result.setResponseOK();
-        }else{
-            result.setResponseData("No records retrieved", StandardCharsets.UTF_8.name());
+        } else {
+            result.setResponseData("No record retrieved", StandardCharsets.UTF_8.name());
             result.setResponseCode("401");
         }
     }
 
-    private void validateClient() {
-        if (this.kafkaConsumer == null && getKafkaConsumer() != null) {
-            this.kafkaConsumer = getKafkaConsumer();
-        }else{
-            throw new RuntimeException("Kafka Consumer Client not found. Check Variable Name in KafkaConsumerSampler.");
-        }
-    }
-
     private SampleResult handleException(SampleResult result, Exception ex) {
-        result.setResponseMessage("Error sending message to kafka topic");
+        result.setResponseMessage("Error consuming messages from kafka topic");
         result.setResponseCode("500");
-        result.setResponseData(String.format("Error sending message to kafka topic : %s", ex.toString()).getBytes());
+        result.setResponseData(String.format("Error consuming messages from kafka topic : %s", ex).getBytes());
         result.setSuccessful(false);
         return result;
     }
@@ -150,14 +158,27 @@ public class KafkaConsumerSampler extends AbstractTestElement
     @Override
     public void testStarted() {
     }
+
     @Override
-    public void testStarted(String s) {
+    public void testStarted(String host) {
+        testStarted();
     }
+
     @Override
     public void testEnded() {
+        LOGGER.info("{} Kafka consumer - test ended.", this);
+        if (closeConsumerAtTestEnd) {
+            consumers.forEach((threadNum, consumer) -> {
+                consumer.close(Duration.ofSeconds(10));
+                LOGGER.info("{} Kafka consumer of thread {} terminated.", this, threadNum);
+            });
+            consumers.clear();
+        }
     }
+
     @Override
-    public void testEnded(String s) {
+    public void testEnded(String host) {
+        testEnded();
     }
 
     //Getters and setters
@@ -166,14 +187,25 @@ public class KafkaConsumerSampler extends AbstractTestElement
         return kafkaConsumerClientVariableName;
     }
 
+    @SuppressWarnings("unused")
     public void setKafkaConsumerClientVariableName(String kafkaConsumerClientVariableName) {
         this.kafkaConsumerClientVariableName = kafkaConsumerClientVariableName;
+    }
+
+    public String getCommaSeparatedTopicNames() {
+        return commaSeparatedTopicNames;
+    }
+
+    @SuppressWarnings("unused")
+    public void setCommaSeparatedTopicNames(String commaSeparatedTopicNames) {
+        this.commaSeparatedTopicNames = commaSeparatedTopicNames;
     }
 
     public String getPollTimeout() {
         return (Strings.isNullOrEmpty(pollTimeout)) ? pollTimeout : String.valueOf(DEFAULT_TIMEOUT);
     }
 
+    @SuppressWarnings("unused")
     public void setPollTimeout(String pollTimeout) {
         this.pollTimeout = pollTimeout;
     }
@@ -182,13 +214,58 @@ public class KafkaConsumerSampler extends AbstractTestElement
         return commitType;
     }
 
+    @SuppressWarnings("unused")
     public void setCommitType(String commitType) {
         this.commitType = commitType;
     }
 
-    @SuppressWarnings("unchecked")
-    public KafkaConsumer<String, Object> getKafkaConsumer() {
-        return (KafkaConsumer<String, Object>) JMeterContextService.getContext().getVariables().getObject(getKafkaConsumerClientVariableName());
+    public boolean isCloseConsumerAtTestEnd() {
+        return closeConsumerAtTestEnd;
     }
 
+    @SuppressWarnings("unused")
+    public void setCloseConsumerAtTestEnd(boolean closeConsumerAtTestEnd) {
+        this.closeConsumerAtTestEnd = closeConsumerAtTestEnd;
+    }
+
+    @SuppressWarnings("unchecked")
+    private KafkaConsumer<String, Object> getKafkaConsumerOfThread() {
+
+        final JMeterVariables variables = getThreadContext().getVariables();
+        final JMeterContext threadContext = getThreadContext();
+        final int threadNum = threadContext.getThreadNum();
+        LOGGER.debug("{} getKafkaConsumerOfThread for thread {}", this, threadNum);
+        // the name under which the properties are stored
+        final String variableNameProperties = getKafkaConsumerClientVariableName();
+        // the name under which the consumer is stored
+        final String variableNameConsumer = getKafkaConsumerClientVariableName() + "_" + threadNum;
+        KafkaConsumer<String, Object> consumer = (KafkaConsumer<String, Object>) variables.getObject(variableNameConsumer);
+        if (consumer == null) {
+            Properties consumerProperties = (Properties) variables.getObject(variableNameProperties);
+            if (consumerProperties == null) {
+                throw new RuntimeException("Consumer properties for '" + variableNameProperties + "' not found!");
+            }
+            LOGGER.info("Kafka consumer properties ({}) fetched from configuration '{}'.", consumerProperties.size(), variableNameProperties);
+
+            final String topicNames = getCommaSeparatedTopicNames();
+            Collection<String> topicList =  Arrays.asList(topicNames.split("\\s*,\\s*"));
+            LOGGER.info("Kafka consumer test for topics {} started.", topicList);
+
+            // final String clientId = String.format("jmeter-%d-%03d", ProcessHandle.current().pid(), threadNum);
+            final String clientId = String.format("jmeter-%03d", threadNum);
+            consumerProperties.put("client.id", clientId);
+            try {
+                consumer = new KafkaConsumer<>(consumerProperties);
+                consumer.subscribe(topicList);
+                variables.putObject(variableNameConsumer, consumer);
+                consumers.put(threadNum, consumer);
+                LOGGER.info("Created KafkaConsumer {} with client id {} for name '{}' subscribed to topics {}",
+                    consumer, clientId, variableNameConsumer, topicList);
+            } catch (Exception e) {
+                LOGGER.error("Cannot initialize KafkaConsumer '{}' for topics {}!", variableNameConsumer, topicList, e);
+                throw e;
+            }
+        }
+        return consumer;
+    }
 }

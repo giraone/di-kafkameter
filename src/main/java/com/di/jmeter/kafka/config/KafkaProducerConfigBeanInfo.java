@@ -17,18 +17,17 @@
  */
 package com.di.jmeter.kafka.config;
 
-import java.beans.PropertyDescriptor;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.stream.Collectors;
-
+import com.di.jmeter.kafka.utils.VariableSettings;
 import org.apache.jmeter.testbeans.BeanInfoSupport;
 import org.apache.jmeter.testbeans.gui.TableEditor;
 import org.apache.jmeter.testbeans.gui.TypeEditor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.di.jmeter.kafka.utils.VariableSettings;
+import java.beans.PropertyDescriptor;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 public class KafkaProducerConfigBeanInfo extends BeanInfoSupport{
 

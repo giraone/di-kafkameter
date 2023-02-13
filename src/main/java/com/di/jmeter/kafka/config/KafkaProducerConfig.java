@@ -17,10 +17,7 @@
  */
 package com.di.jmeter.kafka.config;
 
-import java.io.Serializable;
-import java.util.List;
-import java.util.Properties;
-
+import com.di.jmeter.kafka.utils.VariableSettings;
 import org.apache.jmeter.config.ConfigElement;
 import org.apache.jmeter.config.ConfigTestElement;
 import org.apache.jmeter.testbeans.TestBean;
@@ -32,7 +29,9 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.di.jmeter.kafka.utils.VariableSettings;
+import java.io.Serializable;
+import java.util.List;
+import java.util.Properties;
 
 public class KafkaProducerConfig extends ConfigTestElement
 		implements ConfigElement, TestBean, TestStateListener, Serializable {
@@ -98,17 +97,14 @@ public class KafkaProducerConfig extends ConfigTestElement
 		props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, getSerializerValue());
 		props.put("security.protocol", getSecurityType().replaceAll("securityType.", "").toUpperCase());
 
-		LOGGER.debug("Additional Config Size::: " + getExtraConfigs().size());
-		if (getExtraConfigs().size() >= 1) {
-			LOGGER.info("Setting up Additional properties");
-			for (VariableSettings entry : getExtraConfigs()){
-				props.put(entry.getConfigKey(), entry.getConfigValue());
-				LOGGER.debug(String.format("Adding property : %s", entry.getConfigKey()));
-			}
+		LOGGER.debug("Adding {} additional configs", getExtraConfigs().size());
+		for (VariableSettings entry : getExtraConfigs()){
+			props.put(entry.getConfigKey(), entry.getConfigValue());
+			LOGGER.debug("Adding property: {}", entry.getConfigKey());
 		}
 
 		if (getSecurityType().equalsIgnoreCase("securityType.ssl") || getSecurityType().equalsIgnoreCase("securityType.sasl_ssl")) {
-			LOGGER.info("Kafka security type: " + getSecurityType().replaceAll("securityType.", "").toUpperCase());
+			LOGGER.info("Kafka security type: {}", getSecurityType().replaceAll("securityType.", "").toUpperCase());
 			LOGGER.info("Setting up Kafka {} properties", getSecurityType());
 			props.put("ssl.truststore.location", getKafkaSslTruststore());
 			props.put("ssl.truststore.password", getKafkaSslTruststorePassword());
@@ -243,5 +239,4 @@ public class KafkaProducerConfig extends ConfigTestElement
 	public void setSerializerValue(String serializerValue) {
 		this.serializerValue = serializerValue;
 	}
-
 }
