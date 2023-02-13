@@ -114,7 +114,7 @@ public class KafkaProducerConfigBeanInfo extends BeanInfoSupport{
 
 		securityPropDesc =  property("kafkaSslTruststorePassword", TypeEditor.PasswordEditor);
 		securityPropDesc.setValue(NOT_UNDEFINED, Boolean.TRUE);
-		securityPropDesc.setValue(DEFAULT, "Chang3M3");
+		securityPropDesc.setValue(DEFAULT, "changeit");
 		securityPropDesc.setDisplayName("Truststore Password");
 		securityPropDesc.setShortDescription("Kafka SSL Truststore Password");
 
@@ -126,13 +126,13 @@ public class KafkaProducerConfigBeanInfo extends BeanInfoSupport{
 
 		securityPropDesc =  property("kafkaSslKeystorePassword", TypeEditor.PasswordEditor);
 		securityPropDesc.setValue(NOT_UNDEFINED, Boolean.TRUE);
-		securityPropDesc.setValue(DEFAULT, "Chang3M3");
+		securityPropDesc.setValue(DEFAULT, "changeit");
 		securityPropDesc.setDisplayName("Keystore Password");
 		securityPropDesc.setShortDescription("Kafka SSL Keystore Password");
 
 		securityPropDesc =  property("kafkaSslPrivateKeyPass", TypeEditor.PasswordEditor);
 		securityPropDesc.setValue(NOT_UNDEFINED, Boolean.TRUE);
-		securityPropDesc.setValue(DEFAULT, "Chang3M3");
+		securityPropDesc.setValue(DEFAULT, "changeit");
 		securityPropDesc.setDisplayName("Keystore Private Key Password");
 		securityPropDesc.setShortDescription("Kafka SSL Keystore private key password");
 
