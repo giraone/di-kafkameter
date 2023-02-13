@@ -21,7 +21,7 @@
           </elementProp>
           <elementProp name="producerLoops" elementType="Argument">
             <stringProp name="Argument.name">producerLoops</stringProp>
-            <stringProp name="Argument.value">2</stringProp>
+            <stringProp name="Argument.value">10</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
           <elementProp name="consumerThreads" elementType="Argument">
@@ -31,12 +31,7 @@
           </elementProp>
           <elementProp name="consumerLoops" elementType="Argument">
             <stringProp name="Argument.name">consumerLoops</stringProp>
-            <stringProp name="Argument.value">1</stringProp>
-            <stringProp name="Argument.metadata">=</stringProp>
-          </elementProp>
-          <elementProp name="consumerMessagesPerPoll" elementType="Argument">
-            <stringProp name="Argument.name">consumerMessagesPerPoll</stringProp>
-            <stringProp name="Argument.value">1</stringProp>
+            <stringProp name="Argument.value">5</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
         </collectionProp>
@@ -62,7 +57,16 @@
         <boolProp name="autoCommit">true</boolProp>
         <stringProp name="deSerializerKey">org.apache.kafka.common.serialization.StringDeserializer</stringProp>
         <stringProp name="deSerializerValue">org.apache.kafka.common.serialization.StringDeserializer</stringProp>
-        <collectionProp name="extraConfigs"/>
+        <collectionProp name="extraConfigs">
+          <elementProp name="" elementType="com.di.jmeter.kafka.utils.VariableSettings">
+            <stringProp name="configKey">auto.offset.reset</stringProp>
+            <stringProp name="configValue">earliest</stringProp>
+          </elementProp>
+          <elementProp name="" elementType="com.di.jmeter.kafka.utils.VariableSettings">
+            <stringProp name="configKey">auto.commit.interval.ms</stringProp>
+            <stringProp name="configValue">1000</stringProp>
+          </elementProp>
+        </collectionProp>
         <stringProp name="groupId">consumer-group-1</stringProp>
         <stringProp name="kafkaBrokers">localhost:9092</stringProp>
         <stringProp name="kafkaConsumerClientVariableName">KafkaConsumerClient</stringProp>
@@ -71,9 +75,9 @@
         <stringProp name="kafkaSslPrivateKeyPass"></stringProp>
         <stringProp name="kafkaSslTruststore"></stringProp>
         <stringProp name="kafkaSslTruststorePassword"></stringProp>
-        <stringProp name="numberOfMsgToPoll">${consumerMessagesPerPoll}</stringProp>
         <stringProp name="securityType">securityType.plaintext</stringProp>
-        <stringProp name="topic">test-topic</stringProp>
+        <stringProp name="topic">test-topic1</stringProp>
+        <stringProp name="numberOfMsgToPoll">1</stringProp>
       </com.di.jmeter.kafka.config.KafkaConsumerConfig>
       <hashTree/>
       <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Thread Group - Producer" enabled="true">
@@ -94,13 +98,11 @@
           <stringProp name="cacheKey">true</stringProp>
           <stringProp name="filename"></stringProp>
           <stringProp name="parameters"></stringProp>
-          <stringProp name="script">import com.github.f4b6a3.tsid.TsidCreator;
-
-import java.time.Instant;
+          <stringProp name="script">import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
-String messageKey = TsidCreator.getTsid256().toString();
+String messageKey = Long.toString(System.nanoTime());
 vars.put(&quot;messageKey&quot;, messageKey);
 
 String messageContent = &quot;Content &quot; + messageKey;
@@ -120,7 +122,7 @@ vars.put(&quot;timestampCreated&quot;, timestampCreated);</stringProp>
 }</stringProp>
           <stringProp name="kafkaMessageKey">${messageKey}</stringProp>
           <stringProp name="kafkaProducerClientVariableName">KafkaProducerClient</stringProp>
-          <stringProp name="kafkaTopic">test-topic</stringProp>
+          <stringProp name="kafkaTopic">test-topic1</stringProp>
           <collectionProp name="messageHeaders"/>
           <stringProp name="partitionString"></stringProp>
         </com.di.jmeter.kafka.sampler.KafkaProducerSampler>
@@ -144,9 +146,20 @@ vars.put(&quot;timestampCreated&quot;, timestampCreated);</stringProp>
           <stringProp name="commitType">Sync</stringProp>
           <stringProp name="kafkaConsumerClientVariableName">KafkaConsumerClient</stringProp>
           <stringProp name="pollTimeout">100</stringProp>
-          <stringProp name="commaSeparatedTopicNames">test-topic</stringProp>
+          <stringProp name="commaSeparatedTopicNames">test-topic1</stringProp>
+          <boolProp name="closeConsumerAtTestEnd">false</boolProp>
         </com.di.jmeter.kafka.sampler.KafkaConsumerSampler>
-        <hashTree/>
+        <hashTree>
+          <JSONPathAssertion guiclass="JSONPathAssertionGui" testclass="JSONPathAssertion" testname="JSON Assertion" enabled="true">
+            <stringProp name="JSON_PATH">$.messageContent</stringProp>
+            <stringProp name="EXPECTED_VALUE"></stringProp>
+            <boolProp name="JSONVALIDATION">false</boolProp>
+            <boolProp name="EXPECT_NULL">false</boolProp>
+            <boolProp name="INVERT">false</boolProp>
+            <boolProp name="ISREGEX">false</boolProp>
+          </JSONPathAssertion>
+          <hashTree/>
+        </hashTree>
       </hashTree>
       <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true">
         <boolProp name="ResultCollector.error_logging">false</boolProp>

@@ -16,17 +16,12 @@
         <collectionProp name="Arguments.arguments">
           <elementProp name="consumerThreads" elementType="Argument">
             <stringProp name="Argument.name">consumerThreads</stringProp>
-            <stringProp name="Argument.value">1</stringProp>
+            <stringProp name="Argument.value">2</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
           <elementProp name="consumerLoops" elementType="Argument">
             <stringProp name="Argument.name">consumerLoops</stringProp>
-            <stringProp name="Argument.value">1</stringProp>
-            <stringProp name="Argument.metadata">=</stringProp>
-          </elementProp>
-          <elementProp name="consumerMessagesPerPoll" elementType="Argument">
-            <stringProp name="Argument.name">consumerMessagesPerPoll</stringProp>
-            <stringProp name="Argument.value">1</stringProp>
+            <stringProp name="Argument.value">10</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
         </collectionProp>
@@ -36,8 +31,13 @@
         <boolProp name="autoCommit">true</boolProp>
         <stringProp name="deSerializerKey">org.apache.kafka.common.serialization.StringDeserializer</stringProp>
         <stringProp name="deSerializerValue">org.apache.kafka.common.serialization.StringDeserializer</stringProp>
-        <collectionProp name="extraConfigs"/>
-        <stringProp name="groupId">jmeter-consume-1</stringProp>
+        <collectionProp name="extraConfigs">
+          <elementProp name="" elementType="com.di.jmeter.kafka.utils.VariableSettings">
+            <stringProp name="configKey">auto.offset.reset</stringProp>
+            <stringProp name="configValue">earliest</stringProp>
+          </elementProp>
+        </collectionProp>
+        <stringProp name="groupId">jmeter-consume-7</stringProp>
         <stringProp name="kafkaBrokers">localhost:9092</stringProp>
         <stringProp name="kafkaConsumerClientVariableName">KafkaConsumerClient</stringProp>
         <stringProp name="kafkaSslKeystore"></stringProp>
@@ -45,9 +45,9 @@
         <stringProp name="kafkaSslPrivateKeyPass"></stringProp>
         <stringProp name="kafkaSslTruststore"></stringProp>
         <stringProp name="kafkaSslTruststorePassword"></stringProp>
-        <stringProp name="numberOfMsgToPoll">${consumerMessagesPerPoll}</stringProp>
         <stringProp name="securityType">securityType.plaintext</stringProp>
-        <stringProp name="topic">test-topic</stringProp>
+        <stringProp name="topic">test-topic1</stringProp>
+        <stringProp name="autoOffsetReset">earliest</stringProp>
       </com.di.jmeter.kafka.config.KafkaConsumerConfig>
       <hashTree/>
       <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Thread Group - Consumer" enabled="true">
@@ -67,10 +67,32 @@
         <com.di.jmeter.kafka.sampler.KafkaConsumerSampler guiclass="TestBeanGUI" testclass="com.di.jmeter.kafka.sampler.KafkaConsumerSampler" testname="Kafka Consumer Sampler" enabled="true">
           <stringProp name="commitType">Sync</stringProp>
           <stringProp name="kafkaConsumerClientVariableName">KafkaConsumerClient</stringProp>
-          <stringProp name="pollTimeout">100</stringProp>
-          <stringProp name="commaSeparatedTopicNames">test-topic</stringProp>
+          <stringProp name="pollTimeout">1000</stringProp>
+          <stringProp name="commaSeparatedTopicNames">test-topic1</stringProp>
         </com.di.jmeter.kafka.sampler.KafkaConsumerSampler>
-        <hashTree/>
+        <hashTree>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Response Assertion" enabled="true">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="-141197719">Topic: test-topic1</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.custom_message"></stringProp>
+            <stringProp name="Assertion.test_field">Assertion.response_headers</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">2</intProp>
+            <stringProp name="TestPlan.comments">Example, how standard JMeter response assertions can be used</stringProp>
+          </ResponseAssertion>
+          <hashTree/>
+          <JSONPathAssertion guiclass="JSONPathAssertionGui" testclass="JSONPathAssertion" testname="JSON Assertion" enabled="true">
+            <stringProp name="JSON_PATH">$.messageContent</stringProp>
+            <stringProp name="EXPECTED_VALUE"></stringProp>
+            <boolProp name="JSONVALIDATION">false</boolProp>
+            <boolProp name="EXPECT_NULL">false</boolProp>
+            <boolProp name="INVERT">false</boolProp>
+            <boolProp name="ISREGEX">false</boolProp>
+            <stringProp name="TestPlan.comments">Example, how standard JMeter JSON Assertions can be used</stringProp>
+          </JSONPathAssertion>
+          <hashTree/>
+        </hashTree>
       </hashTree>
       <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true">
         <boolProp name="ResultCollector.error_logging">false</boolProp>
